@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0908" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="mobile-web-app-capable" content="yes" />
+<title>Symbolic Spine</title>
+<link rel="manifest" href="manifest.json" />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect width='100' height='100' fill='%230a0908'/%3E%3Ctext x='50' y='68' font-size='60' text-anchor='middle' fill='%23c9a961' font-family='serif'%3E%E2%97%88%3C/text%3E%3C/svg%3E" />
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;0,9..144,700;1,9..144,400&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0a0908;
+    --bgCard: #13110f;
+    --bgCardHi: #1a1714;
+    --ink: #ede6d6;
+    --inkDim: #8a8171;
+    --line: #26221c;
+    --lineHi: #3a342c;
+    --accent: #c9a961;
+    --accentDim: #8a7440;
+    --red: #a04040;
+    --green: #5a8a5a;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Fraunces', Georgia, serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+  body {
+    padding: 20px 16px 60px;
+    padding-top: max(20px, env(safe-area-inset-top));
+    padding-bottom: max(60px, env(safe-area-inset-bottom));
+    position: relative;
+  }
+  .grain {
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.08'/%3E%3C/svg%3E");
+    pointer-events: none; opacity: 0.4; mix-blend-mode: overlay; z-index: 0;
+  }
+  button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
+  textarea { font-family: inherit; }
+  button:focus-visible, textarea:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+
+  /* Header */
+  .header {
+    display: flex; justify-content: space-between; align-items: flex-end;
+    border-bottom: 1px solid var(--line);
+    padding-bottom: 16px; margin-bottom: 20px;
+    position: relative; z-index: 1;
+  }
+  .header-left { display: flex; align-items: center; gap: 12px; }
+  .mark { font-size: 28px; color: var(--accent); line-height: 1; }
+  .wordmark { font-size: 17px; font-weight: 700; letter-spacing: 0.16em; line-height: 1.1; }
+  .sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.22em; color: var(--inkDim); text-transform: uppercase; margin-top: 3px; }
+  .date-stamp { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--inkDim); }
+
+  /* Nav */
+  .nav {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 1px; background: var(--line); border: 1px solid var(--line);
+    margin-bottom: 24px; position: relative; z-index: 1;
+  }
+  .nav-btn {
+    background: var(--bgCard); padding: 12px 10px;
+    text-align: left; transition: all 300ms ease;
+    display: flex; flex-direction: column; gap: 2px;
+  }
+  .nav-btn.active { background: var(--bgCardHi); box-shadow: inset 0 2px 0 0 var(--accent); }
+  .nav-num { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--accent); }
+  .nav-label { font-size: 14px; font-weight: 700; letter-spacing: 0.06em; }
+  .nav-caption { font-family: 'JetBrains Mono', monospace; font-size: 8px; color: var(--inkDim); letter-spacing: 0.08em; }
+
+  /* Cards */
+  main { position: relative; z-index: 1; animation: fade-up 500ms ease both; }
+  .grid { display: grid; grid-template-columns: 1fr; gap: 16px; }
+  .card { background: var(--bgCard); border: 1px solid var(--line); padding: 20px 18px; position: relative; }
+  .card-header {
+    display: flex; align-items: flex-start; gap: 12px;
+    margin-bottom: 18px; padding-bottom: 12px; border-bottom: 1px solid var(--line);
+  }
+  .card-num { font-size: 20px; font-style: italic; color: var(--accent); line-height: 1; padding-top: 2px; }
+  .card-title { font-size: 18px; font-weight: 600; line-height: 1.2; }
+  .card-sub { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.14em; color: var(--inkDim); text-transform: uppercase; margin-top: 4px; }
+
+  /* Checklist */
+  .check-row {
+    display: grid; grid-template-columns: auto 1fr auto;
+    gap: 12px; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line);
+  }
+  .check-step { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--accentDim); letter-spacing: 0.08em; }
+  .check-label { font-size: 14px; font-weight: 600; }
+  .check-question { font-family: 'JetBrains Mono', monospace; font-size: 10px; color: var(--inkDim); }
+  .check-buttons { display: flex; gap: 4px; }
+  .bin-btn {
+    width: 38px; height: 38px; border: 1px solid var(--line); background: var(--bg);
+    color: var(--inkDim); font-family: 'JetBrains Mono', monospace; font-size: 13px;
+    font-weight: 700; letter-spacing: 0.08em; transition: all 150ms ease;
+  }
+  .bin-btn.yes { background: var(--accent); color: var(--bg); border-color: var(--accent); }
+  .bin-btn.no { background: var(--red); color: var(--ink); border-color: var(--red); }
+  .verdict { margin-top: 18px; padding: 14px; text-align: center; font-family: 'JetBrains Mono', monospace; font-size: 12px; font-weight: 700; letter-spacing: 0.26em; }
+  .verdict-go { background: var(--accent); color: var(--bg); }
+  .verdict-no { background: var(--red); color: var(--ink); }
+  .verdict-pending { border: 1px dashed var(--lineHi); color: var(--inkDim); }
+  .reset-btn { margin-top: 10px; font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.18em; color: var(--inkDim); text-transform: uppercase; padding: 8px 0; }
+
+  /* Timer */
+  .timer-wrap { display: flex; justify-content: center; padding: 8px 0; }
+  .timer-svg { width: 200px; height: 200px; max-width: 100%; }
+  .timer-num { font-family: 'Fraunces', serif; font-size: 38px; font-weight: 300; fill: var(--ink); }
+  .timer-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.28em; fill: var(--accent); }
+  .timer-btns { display: flex; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+
+  /* Buttons */
+  .primary-btn {
+    background: var(--accent); color: var(--bg);
+    padding: 12px 22px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+    transition: all 200ms ease;
+  }
+  .primary-btn:active { transform: scale(0.98); }
+  .secondary-btn {
+    background: transparent; color: var(--inkDim);
+    padding: 12px 22px; font-family: 'JetBrains Mono', monospace;
+    font-size: 11px; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase;
+    border: 1px solid var(--line);
+  }
+
+  /* Journal */
+  .journal-input { display: flex; flex-direction: column; gap: 10px; }
+  textarea {
+    width: 100%; background: var(--bg); border: 1px solid var(--line);
+    color: var(--ink); padding: 12px;
+    font-size: 15px; font-style: italic; resize: vertical;
+  }
+  .journal-list { margin-top: 16px; display: flex; flex-direction: column; }
+  .journal-item {
+    display: grid; grid-template-columns: auto 1fr; gap: 12px;
+    padding: 10px 0; border-top: 1px solid var(--line);
+  }
+  .journal-time { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--inkDim); letter-spacing: 0.08em; padding-top: 4px; }
+  .journal-text { font-size: 14px; font-style: italic; }
+
+  /* Wave Panel */
+  .wave-state, .wave-state-warn, .wave-state-active, .wave-state-resolved {
+    font-family: 'JetBrains Mono', monospace; font-size: 12px; letter-spacing: 0.26em;
+    text-align: center; padding: 14px 0; margin-bottom: 16px;
+  }
+  .wave-state { color: var(--green); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .wave-state-warn { color: var(--accent); border-top: 1px solid var(--accent); border-bottom: 1px solid var(--accent); animation: breathe 3s ease-in-out infinite; }
+  .wave-state-active { color: var(--red); border-top: 1px solid var(--red); border-bottom: 1px solid var(--red); }
+  .wave-state-resolved { color: var(--green); border-top: 1px solid var(--green); border-bottom: 1px solid var(--green); }
+  .wave-text { font-size: 16px; font-style: italic; line-height: 1.5; margin-bottom: 18px; }
+  .wave-btns { display: flex; gap: 10px; flex-wrap: wrap; }
+  .checklist-mini { display: flex; flex-direction: column; gap: 6px; margin-bottom: 16px; padding: 14px 16px; background: var(--bg); border: 1px solid var(--line); }
+  .check-mini { font-family: 'JetBrains Mono', monospace; font-size: 12px; }
+  .script { display: flex; flex-direction: column; gap: 16px; margin-bottom: 18px; }
+  .script-phase { padding: 12px 0; border-left: 2px solid var(--accent); padding-left: 16px; }
+  .script-phase-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; letter-spacing: 0.22em; color: var(--accent); text-transform: uppercase; margin-bottom: 8px; }
+  .script-line { font-size: 14px; line-height: 1.5; margin-bottom: 4px; }
+  .script-quote { font-size: 18px; font-style: italic; color: var(--accent); padding: 8px 0; line-height: 1.4; }
+
+  /* Stats */
+  .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px; }
+  .stat { text-align: center; padding: 14px 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+  .stat-num { font-size: 32px; font-weight: 300; color: var(--accent); line-height: 1; }
+  .stat-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--inkDim); letter-spacing: 0.18em; text-transform: uppercase; margin-top: 6px; }
+  .wave-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--line); font-family: 'JetBrains Mono', monospace; font-size: 11px; }
+  .wave-row-time { color: var(--inkDim); letter-spacing: 0.08em; }
+  .wave-row-dur { color: var(--ink); font-weight: 600; }
+
+  /* Reframe */
+  .reframe { padding: 16px 0; }
+  .reframe-line { font-size: 22px; font-style: italic; line-height: 1.3; margin-bottom: 4px; }
+  .reframe-gap { color: var(--accent); margin: 16px 0; font-size: 22px; }
+  .reframe-note { font-family: 'JetBrains Mono', monospace; font-size: 11px; color: var(--inkDim); line-height: 1.7; }
+
+  /* Notice */
+  .notice-help { font-size: 14px; font-style: italic; line-height: 1.5; color: var(--inkDim); padding: 0 0 16px; border-bottom: 1px solid var(--line); margin-bottom: 18px; }
+  .notice-list { display: flex; flex-direction: column; gap: 14px; margin-bottom: 16px; }
+  .notice-row { display: grid; grid-template-columns: auto 1fr; gap: 12px; align-items: start; }
+  .notice-num { font-size: 22px; font-style: italic; color: var(--accent); padding-top: 8px; }
+  .save-row { display: flex; align-items: center; gap: 16px; padding-top: 14px; border-top: 1px solid var(--line); flex-wrap: wrap; }
+  .saved-badge { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--green); letter-spacing: 0.18em; text-transform: uppercase; }
+
+  /* Streak */
+  .streak-big { text-align: center; padding: 8px 0 16px; }
+  .streak-num { font-size: 64px; font-weight: 300; color: var(--accent); line-height: 1; }
+  .streak-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--inkDim); letter-spacing: 0.22em; text-transform: uppercase; margin-top: 6px; }
+  .week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 3px; padding-top: 14px; border-top: 1px solid var(--line); }
+  .week-day { padding: 10px 2px; text-align: center; background: var(--bg); border: 1px solid var(--line); }
+  .week-day.filled { background: var(--bgCardHi); border-color: var(--accentDim); }
+  .week-day.today { border-color: var(--accent); }
+  .week-day-label { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--inkDim); margin-bottom: 4px; }
+  .week-day-dot { font-size: 10px; color: var(--accent); }
+
+  /* Chairs */
+  .chair-row { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--line); gap: 12px; }
+  .chair-row-self { display: flex; justify-content: space-between; align-items: center; padding: 12px 18px; background: var(--bgCardHi); margin: 0 -18px; border-top: 1px solid var(--accent); border-bottom: 1px solid var(--accent); gap: 12px; }
+  .chair-name { font-size: 15px; font-weight: 600; }
+  .chair-rule { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--inkDim); letter-spacing: 0.08em; text-transform: uppercase; text-align: right; }
+
+  /* Recent */
+  .recent-day { display: grid; grid-template-columns: 80px 1fr; gap: 16px; padding: 12px 0; border-top: 1px solid var(--line); }
+  .recent-date { font-family: 'JetBrains Mono', monospace; font-size: 9px; color: var(--accent); letter-spacing: 0.18em; text-transform: uppercase; padding-top: 2px; }
+  .recent-item { font-size: 13px; font-style: italic; line-height: 1.5; }
+
+  /* Footer */
+  footer {
+    margin-top: 40px; padding-top: 20px; border-top: 1px solid var(--line);
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; font-style: italic; color: var(--inkDim);
+    position: relative; z-index: 1; gap: 12px; flex-wrap: wrap;
+  }
+  .footer-meta { font-family: 'JetBrains Mono', monospace; font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase; font-style: normal; }
+
+  .hidden { display: none !important; }
+
+  @keyframes fade-up { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+  @keyframes breathe { 0%, 100% { opacity: 0.6; } 50% { opacity: 1; } }
+
+  /* Larger screens */
+  @media (min-width: 720px) {
+    body { padding: 28px 32px 60px; }
+    .grid { grid-template-columns: repeat(2, 1fr); gap: 20px; }
+    .full-width { grid-column: 1 / -1; }
+    .nav-btn { padding: 18px 22px; }
+    .nav-label { font-size: 18px; }
+    .card { padding: 26px 30px; }
+    .card-title { font-size: 22px; }
+    .wordmark { font-size: 22px; }
+    .mark { font-size: 36px; }
+    .timer-svg { width: 240px; height: 240px; }
+    .streak-num { font-size: 72px; }
+    .recent-day { grid-template-columns: 100px 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="grain"></div>
+
+<header class="header">
+  <div class="header-left">
+    <div class="mark">◈</div>
+    <div>
+      <div class="wordmark">SYMBOLIC SPINE</div>
+      <div class="sub">perception → role → action</div>
+    </div>
+  </div>
+  <div class="date-stamp" id="dateStamp"></div>
+</header>
+
+<nav class="nav">
+  <button class="nav-btn active" data-chair="trader">
+    <span class="nav-num">01</span>
+    <span class="nav-label">TRADER</span>
+    <span class="nav-caption">binary execution</span>
+  </button>
+  <button class="nav-btn" data-chair="partner">
+    <span class="nav-num">02</span>
+    <span class="nav-label">PARTNER</span>
+    <span class="nav-caption">wave de-escalation</span>
+  </button>
+  <button class="nav-btn" data-chair="self">
+    <span class="nav-num">03</span>
+    <span class="nav-label">SELF</span>
+    <span class="nav-caption">noticing practice</span>
+  </button>
+</nav>
+
+<main>
+  <!-- TRADER -->
+  <div class="grid" id="panel-trader">
+    <section class="card">
+      <div class="card-header">
+        <div class="card-num">I</div>
+        <div>
+          <div class="card-title">Checklist as Oracle</div>
+          <div class="card-sub">binary answers only · no "yes, but"</div>
+        </div>
+      </div>
+      <div id="checklist"></div>
+      <div class="verdict" id="verdict"></div>
+      <button class="reset-btn" onclick="resetChecklist()">reset checklist</button>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-num">II</div>
+        <div>
+          <div class="card-title">The 90-Second Lockout</div>
+          <div class="card-sub">after entry · no touching the trade</div>
+        </div>
+      </div>
+      <div class="timer-wrap">
+        <svg viewBox="0 0 200 200" class="timer-svg">
+          <circle cx="100" cy="100" r="88" fill="none" stroke="var(--line)" stroke-width="2" />
+          <circle id="timerArc" cx="100" cy="100" r="88" fill="none" stroke="var(--accent)" stroke-width="3"
+            stroke-dasharray="552.92" stroke-dashoffset="0" transform="rotate(-90 100 100)"
+            style="transition: stroke-dashoffset 1s linear" />
+          <text x="100" y="105" text-anchor="middle" class="timer-num" id="timerText">01:30</text>
+          <text x="100" y="130" text-anchor="middle" class="timer-label" id="timerStateText">READY</text>
+        </svg>
+      </div>
+      <div class="timer-btns" id="timerBtns"></div>
+    </section>
+
+    <section class="card full-width">
+      <div class="card-header">
+        <div class="card-num">III</div>
+        <div>
+          <div class="card-title">Narrative Log</div>
+          <div class="card-sub">log the sentences your brain said · not P&amp;L</div>
+        </div>
+      </div>
+      <div class="journal-input">
+        <textarea id="narrativeInput" rows="2" placeholder='e.g. "this looks weak" · "something feels off"'></textarea>
+        <button class="primary-btn" onclick="addNarrative()" style="align-self: flex-start;">Log</button>
+      </div>
+      <div class="journal-list" id="journalList"></div>
+    </section>
+  </div>
+
+  <!-- PARTNER -->
+  <div class="grid hidden" id="panel-partner">
+    <section class="card full-width">
+      <div class="card-header">
+        <div class="card-num">I</div>
+        <div>
+          <div class="card-title">Name the Wave</div>
+          <div class="card-sub">don't surf it · your regulated nervous system is the co-regulator</div>
+        </div>
+      </div>
+      <div id="wavePanel"></div>
+    </section>
+
+    <section class="card" id="statsCard">
+      <div class="card-header">
+        <div class="card-num">II</div>
+        <div>
+          <div class="card-title">Pattern Data</div>
+          <div class="card-sub">observation, not judgment</div>
+        </div>
+      </div>
+      <div id="waveStats"></div>
+    </section>
+
+    <section class="card" id="reframeCard">
+      <div class="card-header">
+        <div class="card-num">III</div>
+        <div>
+          <div class="card-title">The Core Reframe</div>
+          <div class="card-sub">role clarity</div>
+        </div>
+      </div>
+      <div class="reframe">
+        <div class="reframe-line">You are not her therapist.</div>
+        <div class="reframe-line">You are her partner.</div>
+        <div class="reframe-gap">—</div>
+        <div class="reframe-note">
+          A partner is present, loving, and honest.
+          A therapist holds the frame, interprets, regulates.
+          Doing the second job for free at home loses you both.
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <!-- SELF -->
+  <div class="grid hidden" id="panel-self">
+    <section class="card full-width">
+      <div class="card-header">
+        <div class="card-num">I</div>
+        <div>
+          <div class="card-title">Three Things I Noticed But Did Not Act On</div>
+          <div class="card-sub" id="todayLabel">building the spine · today</div>
+        </div>
+      </div>
+      <div class="notice-help">
+        A micro-expression you chose not to interpret. A setup you chose not to force.
+        A subtle thing a client said that wasn't yours to name today. A cloud passing across the sky.
+      </div>
+      <div class="notice-list" id="noticeList"></div>
+      <div class="save-row">
+        <button class="primary-btn" onclick="saveNoticing()">Save today's practice</button>
+        <div class="saved-badge hidden" id="savedBadge"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-num">II</div>
+        <div>
+          <div class="card-title">Spine Strength</div>
+          <div class="card-sub">consistency, not perfection</div>
+        </div>
+      </div>
+      <div class="streak-big">
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label" id="streakLabel">days this week</div>
+      </div>
+      <div class="week-grid" id="weekGrid"></div>
+    </section>
+
+    <section class="card">
+      <div class="card-header">
+        <div class="card-num">III</div>
+        <div>
+          <div class="card-title">Which Chair?</div>
+          <div class="card-sub">role determines action</div>
+        </div>
+      </div>
+      <div>
+        <div class="chair-row">
+          <span class="chair-name">Trader</span>
+          <span class="chair-rule">ignore unless rule triggers</span>
+        </div>
+        <div class="chair-row">
+          <span class="chair-name">Therapist (paid)</span>
+          <span class="chair-rule">clinical data, act in frame</span>
+        </div>
+        <div class="chair-row">
+          <span class="chair-name">Partner</span>
+          <span class="chair-rule">logistics intel, not a mandate</span>
+        </div>
+        <div class="chair-row-self">
+          <span class="chair-name">Self</span>
+          <span class="chair-rule">the one you actually owe action</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card full-width hidden" id="recentCard">
+      <div class="card-header">
+        <div class="card-num">IV</div>
+        <div>
+          <div class="card-title">Recent Noticings</div>
+          <div class="card-sub">evidence of spine</div>
+        </div>
+      </div>
+      <div id="recentList"></div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div>"I see you. You are mine, and still, I remain."</div>
+  <div class="footer-meta">v1 · local storage · private</div>
+</footer>
+
+<script>
+// ============================================================
+// STATE
+// ============================================================
+const STORE = {
+  checklist: 'spine_checklist',
+  journal: 'spine_journal',
+  waves: 'spine_waves',
+  noticing: 'spine_noticing',
+};
+
+function load(key, fallback) {
+  try {
+    const v = localStorage.getItem(key);
+    return v ? JSON.parse(v) : fallback;
+  } catch { return fallback; }
+}
+function save(key, val) {
+  try { localStorage.setItem(key, JSON.stringify(val)); } catch {}
+}
+
+let checklist = load(STORE.checklist, defaultChecklist());
+let journal = load(STORE.journal, []);
+let waves = load(STORE.waves, []);
+let noticing = load(STORE.noticing, {});
+let wavePhase = 'rest';
+let waveStart = null;
+let waveElapsed = 0;
+let waveInterval = null;
+let timerActive = false;
+let timerLeft = 90;
+let timerInterval = null;
+
+function defaultChecklist() {
+  return [
+    { id: 1, label: 'Daily Bias', question: 'Is bias set and documented?', answer: null },
+    { id: 2, label: '4H Framing', question: 'Is HTF structure aligned with bias?', answer: null },
+    { id: 3, label: '20m Structure', question: 'Has intraday structure confirmed?', answer: null },
+    { id: 4, label: '2m Entry', question: 'Is entry trigger present on 2m?', answer: null },
+    { id: 5, label: 'Validity Filter', question: 'Does setup pass the final filter?', answer: null },
+  ];
+}
+
+// ============================================================
+// FORMATTERS
+// ============================================================
+function formatDate(ts) {
+  const d = ts ? new Date(ts) : new Date();
+  return d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' }).toUpperCase();
+}
+function formatShortDate(s) {
+  return new Date(s).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+function formatTime(ts) {
+  return new Date(ts).toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+}
+function formatElapsed(secs) {
+  return `${Math.floor(secs/60)}:${String(secs%60).padStart(2,'0')}`;
+}
+
+document.getElementById('dateStamp').textContent = formatDate();
+
+// ============================================================
+// NAV
+// ============================================================
+document.querySelectorAll('.nav-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    const chair = btn.dataset.chair;
+    document.getElementById('panel-trader').classList.toggle('hidden', chair !== 'trader');
+    document.getElementById('panel-partner').classList.toggle('hidden', chair !== 'partner');
+    document.getElementById('panel-self').classList.toggle('hidden', chair !== 'self');
+  });
+});
+
+// ============================================================
+// TRADER — CHECKLIST
+// ============================================================
+function renderChecklist() {
+  const html = checklist.map((item, i) => `
+    <div class="check-row">
+      <div class="check-step">0${i+1}</div>
+      <div>
+        <div class="check-label">${item.label}</div>
+        <div class="check-question">${item.question}</div>
+      </div>
+      <div class="check-buttons">
+        <button class="bin-btn ${item.answer === 'yes' ? 'yes' : ''}" onclick="setAnswer(${item.id}, 'yes')">Y</button>
+        <button class="bin-btn ${item.answer === 'no' ? 'no' : ''}" onclick="setAnswer(${item.id}, 'no')">N</button>
+      </div>
+    </div>
+  `).join('');
+  document.getElementById('checklist').innerHTML = html;
+
+  const allYes = checklist.every(c => c.answer === 'yes');
+  const anyNo = checklist.some(c => c.answer === 'no');
+  const verdict = document.getElementById('verdict');
+  verdict.className = 'verdict';
+  if (allYes) { verdict.classList.add('verdict-go'); verdict.textContent = 'ALL CLEAR · EXECUTE'; }
+  else if (anyNo) { verdict.classList.add('verdict-no'); verdict.textContent = 'STAND DOWN · PASS'; }
+  else { verdict.classList.add('verdict-pending'); verdict.textContent = 'INCOMPLETE'; }
+}
+function setAnswer(id, ans) {
+  checklist = checklist.map(c => c.id === id ? { ...c, answer: ans } : c);
+  save(STORE.checklist, checklist);
+  renderChecklist();
+}
+function resetChecklist() {
+  checklist = defaultChecklist();
+  save(STORE.checklist, checklist);
+  renderChecklist();
+}
+
+// ============================================================
+// TRADER — TIMER
+// ============================================================
+function renderTimer() {
+  const arcLen = 2 * Math.PI * 88;
+  const pct = timerLeft / 90;
+  document.getElementById('timerArc').setAttribute('stroke-dashoffset', arcLen * (1 - pct));
+  document.getElementById('timerText').textContent = `${String(Math.floor(timerLeft/60)).padStart(2,'0')}:${String(timerLeft%60).padStart(2,'0')}`;
+  document.getElementById('timerStateText').textContent = timerActive ? 'HANDS OFF' : timerLeft === 0 ? 'RELEASED' : 'READY';
+  const btns = document.getElementById('timerBtns');
+  if (!timerActive && timerLeft === 90) {
+    btns.innerHTML = `<button class="primary-btn" onclick="startTimer()">Start Lockout</button>`;
+  } else if (timerActive) {
+    btns.innerHTML = `<button class="secondary-btn" onclick="stopTimer()">Abort</button>`;
+  } else if (!timerActive && timerLeft === 0) {
+    btns.innerHTML = `<button class="primary-btn" onclick="resetTimer()">Reset</button>`;
+  }
+}
+function startTimer() {
+  timerActive = true; timerLeft = 90;
+  timerInterval = setInterval(() => {
+    timerLeft--;
+    if (timerLeft <= 0) { timerLeft = 0; timerActive = false; clearInterval(timerInterval); }
+    renderTimer();
+  }, 1000);
+  renderTimer();
+}
+function stopTimer() {
+  timerActive = false; timerLeft = 90;
+  clearInterval(timerInterval);
+  renderTimer();
+}
+function resetTimer() { timerLeft = 90; renderTimer(); }
+
+// ============================================================
+// TRADER — JOURNAL
+// ============================================================
+function addNarrative() {
+  const input = document.getElementById('narrativeInput');
+  const text = input.value.trim();
+  if (!text) return;
+  journal = [{ text, time: Date.now() }, ...journal].slice(0, 50);
+  save(STORE.journal, journal);
+  input.value = '';
+  renderJournal();
+}
+function renderJournal() {
+  const list = document.getElementById('journalList');
+  list.innerHTML = journal.slice(0, 10).map(e => `
+    <div class="journal-item">
+      <div class="journal-time">${formatTime(e.time)}</div>
+      <div class="journal-text">"${e.text}"</div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// PARTNER — WAVE TRACKER
+// ============================================================
+function renderWavePanel() {
+  const panel = document.getElementById('wavePanel');
+  if (wavePhase === 'rest') {
+    panel.innerHTML = `
+      <div class="wave-state">FLAT GROUND</div>
+      <p class="wave-text">When you sense a wave building — typically 10–30 minutes of early warning — use the window to secure logistics: close the laptop, walk the dog, finish the journal. You are bringing the laundry in off the line. You are not trying to stop the weather.</p>
+      <button class="primary-btn" onclick="detectWave()">I sense one building</button>
+    `;
+  } else if (wavePhase === 'detected') {
+    panel.innerHTML = `
+      <div class="wave-state-warn">EARLY WARNING · LOGISTICS WINDOW</div>
+      <div class="checklist-mini">
+        <div class="check-mini">□ Close trading laptop</div>
+        <div class="check-mini">□ Finish anything with a deadline</div>
+        <div class="check-mini">□ Take care of the dog</div>
+        <div class="check-mini">□ Eat / hydrate / bathroom</div>
+        <div class="check-mini">□ Drop shoulders · slow breath</div>
+      </div>
+      <div class="wave-btns">
+        <button class="primary-btn" onclick="confirmWave()">Wave has started</button>
+        <button class="secondary-btn" onclick="abortWave()">False alarm</button>
+      </div>
+    `;
+  } else if (wavePhase === 'active') {
+    panel.innerHTML = `
+      <div class="wave-state-active">WAVE ACTIVE · ${formatElapsed(waveElapsed)}</div>
+      <div class="script">
+        <div class="script-phase">
+          <div class="script-phase-label">0 – 90 seconds</div>
+          <div class="script-line">Internal only: "This is a wave. It will pass whether I surf it or not."</div>
+          <div class="script-line">Do not interpret. Do not diagnose. Do not solve.</div>
+        </div>
+        <div class="script-phase">
+          <div class="script-phase-label">During the wave</div>
+          <div class="script-line">One short line, spoken calmly:</div>
+          <div class="script-quote">"I hear you. This is hard. I'm here."</div>
+          <div class="script-line">Then: regulate your own body. Slow breath. Low voice. Same posture.</div>
+        </div>
+        <div class="script-phase">
+          <div class="script-phase-label">Do NOT</div>
+          <div class="script-line">· Reframe · Interpret · Therapize · Debrief while warm · Match intensity</div>
+        </div>
+        <div class="script-phase">
+          <div class="script-phase-label">After the wave</div>
+          <div class="script-line">Only debrief if she initiates. Otherwise wait until next day, flat ground.</div>
+        </div>
+      </div>
+      <button class="secondary-btn" onclick="endWave()">Wave has ended</button>
+    `;
+  } else if (wavePhase === 'resolved') {
+    panel.innerHTML = `
+      <div class="wave-state-resolved">RESOLVED · ${formatElapsed(waveElapsed)}</div>
+      <p class="wave-text">Let the residue cool. Do not debrief now. Hydrate. Check in with your own body.</p>
+    `;
+  }
+}
+function detectWave() { wavePhase = 'detected'; renderWavePanel(); }
+function confirmWave() {
+  wavePhase = 'active'; waveStart = Date.now(); waveElapsed = 0;
+  waveInterval = setInterval(() => {
+    waveElapsed = Math.floor((Date.now() - waveStart) / 1000);
+    renderWavePanel();
+  }, 1000);
+  renderWavePanel();
+}
+function endWave() {
+  clearInterval(waveInterval);
+  waves = [{ duration: waveElapsed, time: Date.now() }, ...waves].slice(0, 30);
+  save(STORE.waves, waves);
+  wavePhase = 'resolved';
+  renderWavePanel();
+  renderWaveStats();
+  setTimeout(() => {
+    wavePhase = 'rest'; waveStart = null; waveElapsed = 0;
+    renderWavePanel();
+  }, 5000);
+}
+function abortWave() { wavePhase = 'rest'; renderWavePanel(); }
+
+function renderWaveStats() {
+  const card = document.getElementById('statsCard');
+  if (waves.length === 0) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  const avg = Math.round(waves.reduce((a, b) => a + b.duration, 0) / waves.length / 60);
+  document.getElementById('waveStats').innerHTML = `
+    <div class="stats-grid">
+      <div class="stat"><div class="stat-num">${waves.length}</div><div class="stat-label">waves logged</div></div>
+      <div class="stat"><div class="stat-num">${avg || '—'}</div><div class="stat-label">avg minutes</div></div>
+    </div>
+    <div>${waves.slice(0,5).map(w => `
+      <div class="wave-row">
+        <span class="wave-row-time">${formatDate(w.time)}</span>
+        <span class="wave-row-dur">${formatElapsed(w.duration)}</span>
+      </div>
+    `).join('')}</div>
+  `;
+}
+
+// ============================================================
+// SELF — NOTICING
+// ============================================================
+function todayKey() { return new Date().toDateString(); }
+
+function renderNotice() {
+  const today = todayKey();
+  const entry = noticing[today] || { items: ['', '', ''] };
+  document.getElementById('todayLabel').textContent = `building the spine · ${formatDate()}`;
+  const list = document.getElementById('noticeList');
+  list.innerHTML = [0, 1, 2].map(i => `
+    <div class="notice-row">
+      <div class="notice-num">${i+1}</div>
+      <textarea rows="2" id="notice-${i}" placeholder="${i === 0 ? 'something you saw and let pass...' : ''}">${entry.items[i] || ''}</textarea>
+    </div>
+  `).join('');
+
+  const badge = document.getElementById('savedBadge');
+  if (entry.savedAt) {
+    badge.textContent = `saved · ${formatTime(entry.savedAt)}`;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+function saveNoticing() {
+  const today = todayKey();
+  const items = [0, 1, 2].map(i => document.getElementById(`notice-${i}`).value);
+  noticing[today] = { items, savedAt: Date.now() };
+  save(STORE.noticing, noticing);
+  renderNotice();
+  renderStreak();
+  renderRecent();
+}
+
+function getLast7Days() {
+  const days = [];
+  const todayStr = new Date().toDateString();
+  for (let i = 6; i >= 0; i--) {
+    const d = new Date();
+    d.setDate(d.getDate() - i);
+    days.push({
+      key: d.toDateString(),
+      short: d.toLocaleDateString('en-US', { weekday: 'narrow' }),
+      isToday: d.toDateString() === todayStr,
+    });
+  }
+  return days;
+}
+function renderStreak() {
+  const days = getLast7Days();
+  const count = days.filter(d => noticing[d.key]).length;
+  document.getElementById('streakNum').textContent = count;
+  document.getElementById('streakLabel').textContent = `day${count === 1 ? '' : 's'} this week`;
+  document.getElementById('weekGrid').innerHTML = days.map(d => `
+    <div class="week-day ${noticing[d.key] ? 'filled' : ''} ${d.isToday ? 'today' : ''}">
+      <div class="week-day-label">${d.short}</div>
+      <div class="week-day-dot">${noticing[d.key] ? '●' : '○'}</div>
+    </div>
+  `).join('');
+}
+function renderRecent() {
+  const dates = Object.keys(noticing).sort((a, b) => new Date(b) - new Date(a)).slice(0, 5);
+  const card = document.getElementById('recentCard');
+  if (dates.length === 0) { card.classList.add('hidden'); return; }
+  card.classList.remove('hidden');
+  document.getElementById('recentList').innerHTML = dates.map(d => `
+    <div class="recent-day">
+      <div class="recent-date">${formatShortDate(d)}</div>
+      <div>
+        ${noticing[d].items.filter(x => x.trim()).map(x => `<div class="recent-item">· ${x}</div>`).join('')}
+      </div>
+    </div>
+  `).join('');
+}
+
+// ============================================================
+// INIT
+// ============================================================
+renderChecklist();
+renderTimer();
+renderJournal();
+renderWavePanel();
+renderWaveStats();
+renderNotice();
+renderStreak();
+renderRecent();
+</script>
+</body>
+</html>
